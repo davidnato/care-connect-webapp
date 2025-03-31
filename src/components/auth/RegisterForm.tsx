@@ -49,7 +49,12 @@ const RegisterForm = () => {
   const onSubmit = async (data: FormValues) => {
     setIsLoading(true);
     try {
-      await register(data);
+      // Ensure we're passing an object with the required non-optional properties
+      await register({
+        name: data.name,
+        email: data.email,
+        password: data.password,
+      });
       toast.success("Account created successfully");
       navigate("/login");
     } catch (error) {

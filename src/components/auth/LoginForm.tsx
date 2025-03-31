@@ -42,7 +42,11 @@ const LoginForm = () => {
   const onSubmit = async (data: FormValues) => {
     setIsLoading(true);
     try {
-      await login(data);
+      // Ensure we're passing an object with the required non-optional properties
+      await login({
+        email: data.email,
+        password: data.password,
+      });
       toast.success("Logged in successfully");
       navigate("/dashboard");
     } catch (error) {
