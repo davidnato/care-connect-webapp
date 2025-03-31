@@ -234,7 +234,7 @@ const Profile = () => {
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="height">Height</Label>
-                          <Input id="height" defaultValue="5'10\" (178 cm)" />
+                          <Input id="height" defaultValue="5'10&quot; (178 cm)" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="weight">Weight</Label>
@@ -266,7 +266,7 @@ const Profile = () => {
                           </div>
                           <div>
                             <p className="text-sm font-medium text-muted-foreground">Height</p>
-                            <p>5'10" (178 cm)</p>
+                            <p>5&apos;10&quot; (178 cm)</p>
                           </div>
                           <div>
                             <p className="text-sm font-medium text-muted-foreground">Weight</p>
