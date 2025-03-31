@@ -22,6 +22,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Search, UserPlus, FileText, Calendar, Phone, Mail } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import PatientEditDialog from "@/components/patients/PatientEditDialog";
+import { toast } from "sonner";
 
 // Mock patients data
 const mockPatients = [
@@ -101,6 +103,18 @@ const Patients = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [patients, setPatients] = useState(mockPatients);
+
+  // Handle updating a patient
+  const handleUpdatePatient = (patientId: string, updatedData: Partial<typeof patients[0]>) => {
+    setPatients(
+      patients.map((patient) =>
+        patient.id === patientId
+          ? { ...patient, ...updatedData }
+          : patient
+      )
+    );
+  };
 
   // Check if user has access (admin or doctor)
   if (user?.role !== "admin" && user?.role !== "doctor") {
@@ -109,7 +123,7 @@ const Patients = () => {
   }
 
   // Filter patients based on search query
-  const filteredPatients = mockPatients.filter((patient) => {
+  const filteredPatients = patients.filter((patient) => {
     const searchLower = searchQuery.toLowerCase();
     return (
       patient.name.toLowerCase().includes(searchLower) ||
@@ -225,6 +239,10 @@ const Patients = () => {
                             >
                               View
                             </Button>
+                            <PatientEditDialog
+                              patient={patient}
+                              onUpdate={handleUpdatePatient}
+                            />
                             <Button
                               variant="outline"
                               size="sm"

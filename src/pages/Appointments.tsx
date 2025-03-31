@@ -29,6 +29,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDate } from "@/lib/utils";
+import AppointmentEditDialog from "@/components/appointments/AppointmentEditDialog";
+import { toast } from "sonner";
 
 // Mock appointments data
 const mockAppointments = [
@@ -78,9 +80,34 @@ const Appointments = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [appointments, setAppointments] = useState(mockAppointments);
+
+  // Handle updating an appointment
+  const handleUpdateAppointment = (appointmentId: string, updatedData: Partial<typeof appointments[0]>) => {
+    setAppointments(
+      appointments.map((appointment) =>
+        appointment.id === appointmentId
+          ? { ...appointment, ...updatedData }
+          : appointment
+      )
+    );
+  };
+
+  // Handle canceling an appointment
+  const handleCancelAppointment = (appointmentId: string) => {
+    // In a real app, this would call an API
+    setAppointments(
+      appointments.map((appointment) =>
+        appointment.id === appointmentId
+          ? { ...appointment, status: "cancelled" }
+          : appointment
+      )
+    );
+    toast.success("Appointment cancelled successfully");
+  };
 
   // Filter appointments based on search query and status
-  const filteredAppointments = mockAppointments.filter((appointment) => {
+  const filteredAppointments = appointments.filter((appointment) => {
     const matchesSearch =
       appointment.doctor.toLowerCase().includes(searchQuery.toLowerCase()) ||
       appointment.specialty.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -208,22 +235,14 @@ const Appointments = () => {
                             </Button>
                             {appointment.status === "upcoming" && (
                               <>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    navigate(`/appointments/${appointment.id}/edit`)
-                                  }
-                                >
-                                  Reschedule
-                                </Button>
+                                <AppointmentEditDialog
+                                  appointment={appointment}
+                                  onUpdate={handleUpdateAppointment}
+                                />
                                 <Button
                                   variant="destructive"
                                   size="sm"
-                                  onClick={() => {
-                                    // In a real app, this would call an API
-                                    console.log("Cancel appointment:", appointment.id);
-                                  }}
+                                  onClick={() => handleCancelAppointment(appointment.id)}
                                 >
                                   Cancel
                                 </Button>

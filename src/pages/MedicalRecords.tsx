@@ -34,6 +34,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import MedicalRecordEditDialog from "@/components/records/MedicalRecordEditDialog";
+import { toast } from "sonner";
 
 // Mock medical records data
 const mockMedicalRecords = [
@@ -106,9 +108,21 @@ const MedicalRecords = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [records, setRecords] = useState(mockMedicalRecords);
+
+  // Handle updating a medical record
+  const handleUpdateRecord = (recordId: string, updatedData: Partial<typeof records[0]>) => {
+    setRecords(
+      records.map((record) =>
+        record.id === recordId
+          ? { ...record, ...updatedData }
+          : record
+      )
+    );
+  };
 
   // Filter records based on search query and category
-  const filteredRecords = mockMedicalRecords.filter((record) => {
+  const filteredRecords = records.filter((record) => {
     const matchesSearch =
       record.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
       record.doctor.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -242,6 +256,10 @@ const MedicalRecords = () => {
                               <FileText className="h-4 w-4" />
                               View Details
                             </Button>
+                            <MedicalRecordEditDialog
+                              record={record}
+                              onUpdate={handleUpdateRecord}
+                            />
                             <Button
                               variant="outline"
                               size="sm"
