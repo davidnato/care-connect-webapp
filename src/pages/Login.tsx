@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import LoginForm from "@/components/auth/LoginForm";
 import UserCredentials from "@/components/auth/UserCredentials";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Info } from "lucide-react";
 
 const Login = () => {
   const { isAuthenticated } = useAuth();
@@ -21,6 +23,15 @@ const Login = () => {
         <h1 className="text-3xl font-bold text-primary mb-2">MediRecord</h1>
         <p className="text-muted-foreground">Health Records Management System</p>
       </div>
+      
+      <Alert className="w-full max-w-md mb-4 bg-amber-50 border-amber-200">
+        <Info className="h-4 w-4 text-amber-500" />
+        <AlertDescription>
+          This app needs Supabase to store data. Please check your environment variables 
+          or connect Supabase in the Lovable interface.
+        </AlertDescription>
+      </Alert>
+      
       <LoginForm />
       <UserCredentials />
     </div>

@@ -1,4 +1,3 @@
-
 import { z } from "zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -42,16 +41,15 @@ const LoginForm = () => {
   const onSubmit = async (data: FormValues) => {
     setIsLoading(true);
     try {
-      // Ensure we're passing an object with the required non-optional properties
       await login({
         email: data.email,
         password: data.password,
       });
       toast.success("Logged in successfully");
       navigate("/dashboard");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
-      toast.error("Invalid email or password");
+      toast.error(error.message || "Invalid email or password");
     } finally {
       setIsLoading(false);
     }
