@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Bell,
   Calendar,
@@ -24,69 +24,251 @@ import {
   Settings,
 } from "lucide-react";
 
-// Mock notifications data
-const mockNotifications = [
-  {
-    id: "1",
-    title: "Upcoming Appointment",
-    description: "You have an appointment with Dr. Sarah Johnson tomorrow at 10:30 AM.",
-    time: "1 day ago",
-    type: "appointment",
-    isRead: false,
-  },
-  {
-    id: "2",
-    title: "Medication Reminder",
-    description: "Remember to take your Lisinopril medication today.",
-    time: "3 hours ago",
-    type: "medication",
-    isRead: false,
-  },
-  {
-    id: "3",
-    title: "Lab Results Ready",
-    description: "Your recent lab results are now available. View them online.",
-    time: "2 days ago",
-    type: "lab",
-    isRead: true,
-  },
-  {
-    id: "4",
-    title: "Appointment Request Confirmed",
-    description: "Your appointment request with Dr. Michael Chen has been confirmed for July 22, 2023.",
-    time: "5 days ago",
-    type: "appointment",
-    isRead: true,
-  },
-  {
-    id: "5",
-    title: "Medical Record Updated",
-    description: "Your medical record has been updated with your latest visit information.",
-    time: "1 week ago",
-    type: "record",
-    isRead: true,
-  },
-  {
-    id: "6",
-    title: "New Message from Doctor",
-    description: "Dr. Sarah Johnson has sent you a message regarding your recent visit.",
-    time: "1 week ago",
-    type: "message",
-    isRead: true,
-  },
-  {
-    id: "7",
-    title: "Prescription Renewal",
-    description: "Your prescription for Metformin has been renewed and is ready for pickup.",
-    time: "2 weeks ago",
-    type: "medication",
-    isRead: true,
-  },
-];
+const mockNotificationsData = {
+  admin: [
+    {
+      id: "1",
+      title: "New User Registration",
+      description: "Emily Rodriguez has registered as a new patient.",
+      time: "2 hours ago",
+      type: "system",
+      isRead: false,
+    },
+    {
+      id: "2",
+      title: "System Update",
+      description: "System will undergo maintenance tonight at 2:00 AM.",
+      time: "4 hours ago",
+      type: "system",
+      isRead: false,
+    },
+    {
+      id: "3",
+      title: "Staff Meeting",
+      description: "Monthly staff meeting scheduled for Friday at 9:00 AM.",
+      time: "1 day ago",
+      type: "message",
+      isRead: true,
+    },
+  ],
+  doctor: [
+    {
+      id: "1",
+      title: "New Appointment Request",
+      description: "Robert Thompson has requested an appointment for tomorrow at 2:30 PM.",
+      time: "1 hour ago",
+      type: "appointment",
+      isRead: false,
+    },
+    {
+      id: "2",
+      title: "Lab Results Ready",
+      description: "Emily Rodriguez's lab results are ready for review.",
+      time: "3 hours ago",
+      type: "lab",
+      isRead: false,
+    },
+    {
+      id: "3",
+      title: "Patient Message",
+      description: "John Patient has sent you a message regarding their medication.",
+      time: "1 day ago",
+      type: "message",
+      isRead: true,
+    },
+    {
+      id: "4",
+      title: "Medical Record Updated",
+      description: "You updated Robert Thompson's medical record.",
+      time: "2 days ago",
+      type: "record",
+      isRead: true,
+    },
+  ],
+  patient: [
+    {
+      id: "1",
+      title: "Upcoming Appointment",
+      description: "You have an appointment with Dr. Sarah Johnson tomorrow at 10:30 AM.",
+      time: "1 day ago",
+      type: "appointment",
+      isRead: false,
+    },
+    {
+      id: "2",
+      title: "Medication Reminder",
+      description: "Remember to take your Lisinopril medication today.",
+      time: "3 hours ago",
+      type: "medication",
+      isRead: false,
+    },
+    {
+      id: "3",
+      title: "Lab Results Ready",
+      description: "Your recent lab results are now available. View them online.",
+      time: "2 days ago",
+      type: "lab",
+      isRead: true,
+    },
+    {
+      id: "4",
+      title: "Appointment Request Confirmed",
+      description: "Your appointment request with Dr. Michael Chen has been confirmed for July 22, 2023.",
+      time: "5 days ago",
+      type: "appointment",
+      isRead: true,
+    },
+    {
+      id: "5",
+      title: "Medical Record Updated",
+      description: "Your medical record has been updated with your latest visit information.",
+      time: "1 week ago",
+      type: "record",
+      isRead: true,
+    },
+  ],
+  "1": [
+    {
+      id: "1",
+      title: "New System Report",
+      description: "Monthly system report is ready for review.",
+      time: "5 hours ago",
+      type: "system",
+      isRead: false,
+    },
+    {
+      id: "2",
+      title: "Staff Evaluation Due",
+      description: "Annual staff evaluations are due by end of month.",
+      time: "1 day ago",
+      type: "system",
+      isRead: true,
+    },
+  ],
+  "2": [
+    {
+      id: "1",
+      title: "Patient Referral",
+      description: "New patient referral from Dr. Williams for cardiology consultation.",
+      time: "2 hours ago",
+      type: "message",
+      isRead: false,
+    },
+    {
+      id: "2",
+      title: "Conference Invitation",
+      description: "You've been invited to speak at the Cardiology Conference in September.",
+      time: "1 week ago",
+      type: "message",
+      isRead: true,
+    },
+  ],
+  "3": [
+    {
+      id: "1",
+      title: "Prescription Renewal",
+      description: "Your prescription for Metformin has been renewed and is ready for pickup.",
+      time: "1 day ago",
+      type: "medication",
+      isRead: false,
+    },
+    {
+      id: "2",
+      title: "Follow-up Reminder",
+      description: "Remember your follow-up appointment with Dr. Johnson next week.",
+      time: "3 days ago",
+      type: "appointment",
+      isRead: true,
+    },
+  ],
+  "4": [
+    {
+      id: "1",
+      title: "Lab Equipment Maintenance",
+      description: "The lab equipment maintenance is scheduled for this weekend.",
+      time: "3 hours ago",
+      type: "system",
+      isRead: false,
+    },
+    {
+      id: "2",
+      title: "Research Grant Approved",
+      description: "Your research grant application has been approved.",
+      time: "2 days ago",
+      type: "message",
+      isRead: true,
+    },
+  ],
+  "5": [
+    {
+      id: "1",
+      title: "Vaccination Due",
+      description: "Your annual flu vaccination is due this month.",
+      time: "2 days ago",
+      type: "appointment",
+      isRead: false,
+    },
+    {
+      id: "2",
+      title: "Insurance Update",
+      description: "Please update your insurance information at your next visit.",
+      time: "1 week ago",
+      type: "message",
+      isRead: true,
+    },
+  ],
+  "6": [
+    {
+      id: "1",
+      title: "Department Meeting",
+      description: "Pediatrics department meeting tomorrow at 8:00 AM.",
+      time: "5 hours ago",
+      type: "message",
+      isRead: false,
+    },
+    {
+      id: "2",
+      title: "New Protocol Available",
+      description: "New treatment protocol for pediatric asthma is available for review.",
+      time: "3 days ago",
+      type: "system",
+      isRead: true,
+    },
+  ],
+  "7": [
+    {
+      id: "1",
+      title: "Test Results",
+      description: "Your recent blood test results are now available.",
+      time: "1 day ago",
+      type: "lab",
+      isRead: false,
+    },
+    {
+      id: "2",
+      title: "Appointment Reminder",
+      description: "Reminder: You have an appointment with Dr. Williams tomorrow.",
+      time: "4 days ago",
+      type: "appointment",
+      isRead: true,
+    },
+  ],
+};
 
 const Notifications = () => {
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const { user } = useAuth();
+  const [notifications, setNotifications] = useState([]);
   const [filter, setFilter] = useState("all");
+
+  useEffect(() => {
+    if (user) {
+      const userSpecificNotifications = mockNotificationsData[user.id] || [];
+      const roleBasedNotifications = mockNotificationsData[user.role] || [];
+      setNotifications([...userSpecificNotifications, ...roleBasedNotifications]);
+    } else {
+      setNotifications([]);
+    }
+  }, [user]);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
@@ -96,7 +278,7 @@ const Notifications = () => {
     return n.type === filter;
   });
 
-  const markAsRead = (id: string) => {
+  const markAsRead = (id) => {
     setNotifications(
       notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n))
     );
@@ -108,7 +290,7 @@ const Notifications = () => {
     toast.success("All notifications marked as read");
   };
 
-  const getNotificationIcon = (type: string) => {
+  const getNotificationIcon = (type) => {
     switch (type) {
       case "appointment":
         return (
@@ -156,7 +338,8 @@ const Notifications = () => {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Notifications</h1>
             <p className="text-muted-foreground">
-              Stay updated with important information about your health
+              {user ? `Hello, ${user.name}. Stay updated with important information about your health.` : 
+                "Stay updated with important information about your health"}
             </p>
           </div>
           <div className="flex gap-2">
@@ -331,6 +514,35 @@ const Notifications = () => {
                 </div>
               </CardContent>
             </Card>
+            
+            {user && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <User className="mr-2 h-5 w-5" />
+                    Account Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Name</p>
+                      <p className="font-medium">{user.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Email</p>
+                      <p>{user.email}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Role</p>
+                      <Badge className="mt-1">
+                        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>

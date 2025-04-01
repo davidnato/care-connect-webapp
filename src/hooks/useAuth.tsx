@@ -30,7 +30,7 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demo purposes
+// Enhanced mock users with more individual accounts
 const MOCK_USERS = [
   {
     id: "1",
@@ -41,7 +41,7 @@ const MOCK_USERS = [
   },
   {
     id: "2",
-    name: "Doctor Smith",
+    name: "Dr. Sarah Johnson",
     email: "doctor@example.com",
     password: "password123",
     role: "doctor" as const,
@@ -50,6 +50,34 @@ const MOCK_USERS = [
     id: "3",
     name: "John Patient",
     email: "patient@example.com",
+    password: "password123",
+    role: "patient" as const,
+  },
+  {
+    id: "4",
+    name: "Dr. Michael Chen",
+    email: "drchen@example.com",
+    password: "password123",
+    role: "doctor" as const,
+  },
+  {
+    id: "5",
+    name: "Emily Rodriguez",
+    email: "emily@example.com",
+    password: "password123",
+    role: "patient" as const,
+  },
+  {
+    id: "6",
+    name: "Dr. Lisa Williams",
+    email: "drwilliams@example.com",
+    password: "password123",
+    role: "doctor" as const,
+  },
+  {
+    id: "7",
+    name: "Robert Thompson",
+    email: "robert@example.com",
     password: "password123",
     role: "patient" as const,
   },

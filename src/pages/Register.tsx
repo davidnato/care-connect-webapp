@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import RegisterForm from "@/components/auth/RegisterForm";
+import UserCredentials from "@/components/auth/UserCredentials";
 
 const Register = () => {
   const { isAuthenticated } = useAuth();
@@ -15,12 +16,13 @@ const Register = () => {
   }, [isAuthenticated, navigate]);
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-gray-50 px-4">
+    <div className="min-h-screen flex flex-col justify-center items-center bg-gray-50 px-4 py-8">
       <div className="w-full max-w-md mb-8 text-center">
         <h1 className="text-3xl font-bold text-primary mb-2">MediRecord</h1>
         <p className="text-muted-foreground">Health Records Management System</p>
       </div>
       <RegisterForm />
+      <UserCredentials />
     </div>
   );
 };
