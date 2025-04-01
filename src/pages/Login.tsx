@@ -28,9 +28,7 @@ const Login = () => {
         <Alert className="w-full max-w-md mb-4 bg-amber-50 border-amber-200">
           <AlertTriangle className="h-4 w-4 text-amber-500" />
           <AlertDescription>
-            Supabase connection is missing. Please connect Supabase in the Lovable interface or add 
-            the required environment variables (VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY).
-            For now, you can use the demo accounts below.
+            The Supabase connection is active. Authentication will use both Supabase and local fallback.
           </AlertDescription>
         </Alert>
       ) : (

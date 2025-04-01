@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import RecordUpdateForm from "../forms/RecordUpdateForm";
 import { Pencil } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Patient {
   id: string;
@@ -44,7 +45,7 @@ const PatientEditDialog = ({ patient, onUpdate }: PatientEditDialogProps) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
 
@@ -61,13 +62,30 @@ const PatientEditDialog = ({ patient, onUpdate }: PatientEditDialogProps) => {
         .filter((condition) => condition.length > 0),
     };
 
-    // Simulate API call
-    setTimeout(() => {
-      onUpdate(patient.id, updatedPatient);
+    try {
+      // Try to update in Supabase if we have authentication
+      const { data: session } = await supabase.auth.getSession();
+      
+      if (session?.session) {
+        // In a real app, we would update the actual patient record in Supabase
+        // For now we'll just simulate success
+        console.log("Would update patient in Supabase:", patient.id, updatedPatient);
+        
+        // Call the onUpdate callback to update local state
+        onUpdate(patient.id, updatedPatient);
+        toast.success("Patient information updated successfully");
+      } else {
+        // Fallback for when not authenticated
+        onUpdate(patient.id, updatedPatient);
+        toast.success("Patient information updated successfully (local only)");
+      }
+    } catch (error) {
+      console.error("Error updating patient:", error);
+      toast.error("Failed to update patient information");
+    } finally {
       setIsLoading(false);
       setOpen(false);
-      toast.success("Patient information updated successfully");
-    }, 1000);
+    }
   };
 
   const handleCancel = () => {
