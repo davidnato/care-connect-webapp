@@ -5,21 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import RecordUpdateForm from "../forms/RecordUpdateForm";
 import { Pencil } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-
-interface Patient {
-  id: string;
-  name: string;
-  age: number;
-  gender: string;
-  phone: string;
-  email: string;
-  lastVisit: Date;
-  conditions: string[];
-}
+import { databaseService, Patient } from "@/services/databaseService";
 
 interface PatientEditDialogProps {
   patient: Patient;
@@ -30,12 +25,13 @@ const PatientEditDialog = ({ patient, onUpdate }: PatientEditDialogProps) => {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    name: patient.name,
-    age: patient.age.toString(),
+    first_name: patient.first_name,
+    last_name: patient.last_name,
     gender: patient.gender,
-    phone: patient.phone,
-    email: patient.email,
-    conditions: patient.conditions.join(", "),
+    date_of_birth: patient.date_of_birth,
+    contact_number: patient.contact_number,
+    address: patient.address,
+    emergency_contact: patient.emergency_contact || "",
   });
 
   const handleChange = (
@@ -45,59 +41,37 @@ const PatientEditDialog = ({ patient, onUpdate }: PatientEditDialogProps) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Prepare the updated patient data
-    const updatedPatient = {
-      name: formData.name,
-      age: parseInt(formData.age),
-      gender: formData.gender,
-      phone: formData.phone,
-      email: formData.email,
-      conditions: formData.conditions
-        .split(",")
-        .map((condition) => condition.trim())
-        .filter((condition) => condition.length > 0),
-    };
-
     try {
-      // Try to update in Supabase if we have authentication
-      const { data: session } = await supabase.auth.getSession();
-      
-      if (session?.session) {
-        // In a real app, we would update the actual patient record in Supabase
-        // For now we'll just simulate success
-        console.log("Would update patient in Supabase:", patient.id, updatedPatient);
-        
-        // Call the onUpdate callback to update local state
+      const updatedPatient = await databaseService.updatePatient(patient.id, formData);
+      if (updatedPatient) {
         onUpdate(patient.id, updatedPatient);
-        toast.success("Patient information updated successfully");
-      } else {
-        // Fallback for when not authenticated
-        onUpdate(patient.id, updatedPatient);
-        toast.success("Patient information updated successfully (local only)");
+        setOpen(false);
       }
     } catch (error) {
       console.error("Error updating patient:", error);
-      toast.error("Failed to update patient information");
     } finally {
       setIsLoading(false);
-      setOpen(false);
     }
   };
 
   const handleCancel = () => {
     setOpen(false);
-    // Reset form data to original values
     setFormData({
-      name: patient.name,
-      age: patient.age.toString(),
+      first_name: patient.first_name,
+      last_name: patient.last_name,
       gender: patient.gender,
-      phone: patient.phone,
-      email: patient.email,
-      conditions: patient.conditions.join(", "),
+      date_of_birth: patient.date_of_birth,
+      contact_number: patient.contact_number,
+      address: patient.address,
+      emergency_contact: patient.emergency_contact || "",
     });
   };
 
@@ -118,55 +92,79 @@ const PatientEditDialog = ({ patient, onUpdate }: PatientEditDialogProps) => {
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input id="name" name="name" value={formData.name} onChange={handleChange} />
+              <Label htmlFor="first_name">First Name</Label>
+              <Input
+                id="first_name"
+                name="first_name"
+                value={formData.first_name}
+                onChange={handleChange}
+                required
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="age">Age</Label>
+              <Label htmlFor="last_name">Last Name</Label>
               <Input
-                id="age"
-                name="age"
-                type="number"
-                value={formData.age}
+                id="last_name"
+                name="last_name"
+                value={formData.last_name}
                 onChange={handleChange}
+                required
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="gender">Gender</Label>
-              <Input
-                id="gender"
-                name="gender"
+              <Select
                 value={formData.gender}
+                onValueChange={(value) => handleSelectChange("gender", value)}
+              >
+                <SelectTrigger id="gender">
+                  <SelectValue placeholder="Select gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Male">Male</SelectItem>
+                  <SelectItem value="Female">Female</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="date_of_birth">Date of Birth</Label>
+              <Input
+                id="date_of_birth"
+                name="date_of_birth"
+                type="date"
+                value={formData.date_of_birth}
                 onChange={handleChange}
+                required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
+              <Label htmlFor="contact_number">Phone</Label>
               <Input
-                id="phone"
-                name="phone"
-                value={formData.phone}
+                id="contact_number"
+                name="contact_number"
+                value={formData.contact_number}
                 onChange={handleChange}
+                required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="emergency_contact">Emergency Contact</Label>
               <Input
-                id="email"
-                name="email"
-                type="email"
-                value={formData.email}
+                id="emergency_contact"
+                name="emergency_contact"
+                value={formData.emergency_contact}
                 onChange={handleChange}
               />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="conditions">Medical Conditions</Label>
+              <Label htmlFor="address">Address</Label>
               <Textarea
-                id="conditions"
-                name="conditions"
-                value={formData.conditions}
+                id="address"
+                name="address"
+                value={formData.address}
                 onChange={handleChange}
-                placeholder="Enter conditions separated by commas"
+                required
                 className="min-h-[100px]"
               />
             </div>

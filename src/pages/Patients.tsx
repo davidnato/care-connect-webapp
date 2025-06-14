@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -23,97 +23,37 @@ import { Input } from "@/components/ui/input";
 import { Search, UserPlus, FileText, Calendar, Phone, Mail } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import PatientEditDialog from "@/components/patients/PatientEditDialog";
-import { toast } from "sonner";
-
-// Mock patients data
-const mockPatients = [
-  {
-    id: "1",
-    name: "John Smith",
-    age: 45,
-    gender: "Male",
-    phone: "(555) 123-4567",
-    email: "john.smith@example.com",
-    lastVisit: new Date(2023, 5, 28),
-    conditions: ["Hypertension", "Type 2 Diabetes"],
-  },
-  {
-    id: "2",
-    name: "Sarah Johnson",
-    age: 32,
-    gender: "Female",
-    phone: "(555) 987-6543",
-    email: "sarah.johnson@example.com",
-    lastVisit: new Date(2023, 5, 15),
-    conditions: ["Asthma", "Anxiety"],
-  },
-  {
-    id: "3",
-    name: "Robert Williams",
-    age: 58,
-    gender: "Male",
-    phone: "(555) 456-7890",
-    email: "robert.williams@example.com",
-    lastVisit: new Date(2023, 4, 30),
-    conditions: ["Coronary Artery Disease", "Arthritis"],
-  },
-  {
-    id: "4",
-    name: "Emily Davis",
-    age: 27,
-    gender: "Female",
-    phone: "(555) 789-0123",
-    email: "emily.davis@example.com",
-    lastVisit: new Date(2023, 4, 10),
-    conditions: ["Migraine", "Depression"],
-  },
-  {
-    id: "5",
-    name: "Michael Brown",
-    age: 65,
-    gender: "Male",
-    phone: "(555) 234-5678",
-    email: "michael.brown@example.com",
-    lastVisit: new Date(2023, 3, 22),
-    conditions: ["COPD", "Hypertension", "Hyperlipidemia"],
-  },
-  {
-    id: "6",
-    name: "Jennifer Wilson",
-    age: 41,
-    gender: "Female",
-    phone: "(555) 345-6789",
-    email: "jennifer.wilson@example.com",
-    lastVisit: new Date(2023, 3, 5),
-    conditions: ["Hypothyroidism", "Fibromyalgia"],
-  },
-  {
-    id: "7",
-    name: "David Martinez",
-    age: 52,
-    gender: "Male",
-    phone: "(555) 567-8901",
-    email: "david.martinez@example.com",
-    lastVisit: new Date(2023, 2, 18),
-    conditions: ["Type 2 Diabetes", "Obesity"],
-  },
-];
+import { databaseService, Patient } from "@/services/databaseService";
 
 const Patients = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const [patients, setPatients] = useState(mockPatients);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Handle updating a patient
-  const handleUpdatePatient = (patientId: string, updatedData: Partial<typeof patients[0]>) => {
-    setPatients(
-      patients.map((patient) =>
-        patient.id === patientId
-          ? { ...patient, ...updatedData }
-          : patient
-      )
-    );
+  useEffect(() => {
+    loadPatients();
+  }, []);
+
+  const loadPatients = async () => {
+    setLoading(true);
+    const patientsData = await databaseService.getPatients();
+    setPatients(patientsData);
+    setLoading(false);
+  };
+
+  const handleUpdatePatient = async (patientId: string, updatedData: Partial<Patient>) => {
+    const updatedPatient = await databaseService.updatePatient(patientId, updatedData);
+    if (updatedPatient) {
+      setPatients(
+        patients.map((patient) =>
+          patient.id === patientId
+            ? { ...patient, ...updatedPatient }
+            : patient
+        )
+      );
+    }
   };
 
   // Check if user has access (admin or doctor)
@@ -125,16 +65,42 @@ const Patients = () => {
   // Filter patients based on search query
   const filteredPatients = patients.filter((patient) => {
     const searchLower = searchQuery.toLowerCase();
+    const fullName = `${patient.first_name} ${patient.last_name}`.toLowerCase();
     return (
-      patient.name.toLowerCase().includes(searchLower) ||
-      patient.email.toLowerCase().includes(searchLower) ||
-      patient.conditions.some((condition) => condition.toLowerCase().includes(searchLower))
+      fullName.includes(searchLower) ||
+      patient.contact_number.toLowerCase().includes(searchLower)
     );
   });
 
-  const getInitials = (name: string) => {
-    return name.split(" ").map(part => part[0]).join("");
+  const getInitials = (firstName: string, lastName: string) => {
+    return `${firstName[0]}${lastName[0]}`;
   };
+
+  const calculateAge = (dateOfBirth: string) => {
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    return age;
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-2 text-muted-foreground">Loading patients...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -164,7 +130,7 @@ const Patients = () => {
               <div className="flex-1 relative">
                 <Search className="absolute left-2 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by name, email, or condition..."
+                  placeholder="Search by name or phone..."
                   className="pl-8"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -179,8 +145,8 @@ const Patients = () => {
                     <TableRow>
                       <TableHead>Patient</TableHead>
                       <TableHead className="hidden md:table-cell">Contact</TableHead>
-                      <TableHead className="hidden md:table-cell">Last Visit</TableHead>
-                      <TableHead>Conditions</TableHead>
+                      <TableHead className="hidden md:table-cell">Date of Birth</TableHead>
+                      <TableHead>Address</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -190,12 +156,12 @@ const Patients = () => {
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <Avatar>
-                              <AvatarFallback>{getInitials(patient.name)}</AvatarFallback>
+                              <AvatarFallback>{getInitials(patient.first_name, patient.last_name)}</AvatarFallback>
                             </Avatar>
                             <div>
-                              <p className="font-medium">{patient.name}</p>
+                              <p className="font-medium">{patient.first_name} {patient.last_name}</p>
                               <p className="text-xs text-muted-foreground">
-                                {patient.age} yrs, {patient.gender}
+                                {calculateAge(patient.date_of_birth)} yrs, {patient.gender}
                               </p>
                             </div>
                           </div>
@@ -204,31 +170,18 @@ const Patients = () => {
                           <div className="flex flex-col space-y-1">
                             <div className="flex items-center">
                               <Phone className="h-3 w-3 mr-1 text-muted-foreground" />
-                              <span className="text-sm">{patient.phone}</span>
-                            </div>
-                            <div className="flex items-center">
-                              <Mail className="h-3 w-3 mr-1 text-muted-foreground" />
-                              <span className="text-sm">{patient.email}</span>
+                              <span className="text-sm">{patient.contact_number}</span>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           <div className="flex items-center">
                             <Calendar className="h-4 w-4 mr-1 text-muted-foreground" />
-                            <span>{patient.lastVisit.toLocaleDateString()}</span>
+                            <span>{new Date(patient.date_of_birth).toLocaleDateString()}</span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {patient.conditions.map((condition, index) => (
-                              <span
-                                key={index}
-                                className="bg-muted text-xs px-2 py-1 rounded-full"
-                              >
-                                {condition}
-                              </span>
-                            ))}
-                          </div>
+                          <span className="text-sm">{patient.address}</span>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
