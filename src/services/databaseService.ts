@@ -39,8 +39,8 @@ export interface Appointment {
   notes?: string;
   created_at?: string;
   updated_at?: string;
-  patients?: Patient;
-  doctors?: Doctor;
+  patients?: Pick<Patient, 'id' | 'first_name' | 'last_name' | 'contact_number'>;
+  doctors?: Pick<Doctor, 'id' | 'first_name' | 'last_name' | 'specialty'>;
 }
 
 export interface MedicalRecord {
@@ -54,8 +54,8 @@ export interface MedicalRecord {
   notes?: string;
   created_at?: string;
   updated_at?: string;
-  patients?: Patient;
-  doctors?: Doctor;
+  patients?: Pick<Patient, 'id' | 'first_name' | 'last_name'>;
+  doctors?: Pick<Doctor, 'id' | 'first_name' | 'last_name' | 'specialty'>;
 }
 
 export interface Notification {
@@ -162,7 +162,11 @@ class DatabaseService {
       return [];
     }
 
-    return data || [];
+    // Type assertion to handle the status field
+    return (data || []).map(appointment => ({
+      ...appointment,
+      status: appointment.status as 'scheduled' | 'completed' | 'cancelled'
+    }));
   }
 
   async createAppointment(appointment: Omit<Appointment, 'id' | 'created_at' | 'updated_at' | 'patients' | 'doctors'>): Promise<Appointment | null> {
@@ -193,7 +197,10 @@ class DatabaseService {
     }
 
     toast.success('Appointment scheduled successfully');
-    return data;
+    return {
+      ...data,
+      status: data.status as 'scheduled' | 'completed' | 'cancelled'
+    };
   }
 
   async updateAppointment(id: string, updates: Partial<Appointment>): Promise<Appointment | null> {
@@ -225,7 +232,10 @@ class DatabaseService {
     }
 
     toast.success('Appointment updated successfully');
-    return data;
+    return {
+      ...data,
+      status: data.status as 'scheduled' | 'completed' | 'cancelled'
+    };
   }
 
   // Medical Records operations
