@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { Menu, Bell, LogOut, User, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,6 +12,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Sidebar } from "./Sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Link } from "react-router-dom";
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -39,14 +39,14 @@ const Navbar = () => {
             </SheetContent>
           </Sheet>
           <div className="hidden lg:flex">
-            <a href="/dashboard" className="flex items-center">
+            <Link to="/dashboard" className="flex items-center">
               <h1 className="text-xl font-bold text-primary">MediRecord</h1>
-            </a>
+            </Link>
           </div>
           <div className="lg:hidden flex items-center justify-center flex-1">
-            <a href="/dashboard" className="flex items-center">
+            <Link to="/dashboard" className="flex items-center">
               <h1 className="text-xl font-bold text-primary">MediRecord</h1>
-            </a>
+            </Link>
           </div>
         </div>
 
