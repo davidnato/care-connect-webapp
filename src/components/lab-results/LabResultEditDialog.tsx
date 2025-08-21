@@ -9,31 +9,23 @@ import { toast } from "sonner";
 import RecordUpdateForm from "../forms/RecordUpdateForm";
 import { Pencil } from "lucide-react";
 
-interface LabResult {
-  id: string;
-  testName: string;
-  date: Date;
-  doctor: string;
-  results: string;
-  normalRange: string;
-  status: string;
-}
+import { databaseService, type LabResult } from "@/services/databaseService";
 
 interface LabResultEditDialogProps {
   labResult: LabResult;
-  onUpdate: (labResultId: string, updatedData: Partial<LabResult>) => void;
+  onUpdate: () => void;
 }
 
 const LabResultEditDialog = ({ labResult, onUpdate }: LabResultEditDialogProps) => {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    testName: labResult.testName,
-    date: labResult.date.toISOString().split("T")[0],
-    doctor: labResult.doctor,
+    test_type: labResult.test_type,
+    test_date: labResult.test_date,
     results: labResult.results,
-    normalRange: labResult.normalRange,
-    status: labResult.status,
+    normal_range: labResult.normal_range || '',
+    interpretation: labResult.interpretation || '',
+    notes: labResult.notes || '',
   });
 
   const handleChange = (
@@ -43,42 +35,44 @@ const LabResultEditDialog = ({ labResult, onUpdate }: LabResultEditDialogProps) 
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Prepare the updated lab result data
-    const [year, month, day] = formData.date.split("-").map(Number);
-    const updatedDate = new Date(year, month - 1, day);
+    try {
+      const updatedData = {
+        test_type: formData.test_type,
+        test_date: formData.test_date,
+        results: formData.results,
+        normal_range: formData.normal_range || undefined,
+        interpretation: formData.interpretation || undefined,
+        notes: formData.notes || undefined,
+      };
 
-    const updatedLabResult = {
-      testName: formData.testName,
-      date: updatedDate,
-      doctor: formData.doctor,
-      results: formData.results,
-      normalRange: formData.normalRange,
-      status: formData.status,
-    };
-
-    // Simulate API call
-    setTimeout(() => {
-      onUpdate(labResult.id, updatedLabResult);
+      const result = await databaseService.updateLabResult(labResult.id, updatedData);
+      
+      if (result) {
+        setOpen(false);
+        onUpdate();
+      }
+    } catch (error) {
+      console.error('Error updating lab result:', error);
+      toast.error('Failed to update lab result');
+    } finally {
       setIsLoading(false);
-      setOpen(false);
-      toast.success("Lab result updated successfully");
-    }, 1000);
+    }
   };
 
   const handleCancel = () => {
     setOpen(false);
     // Reset form data to original values
     setFormData({
-      testName: labResult.testName,
-      date: labResult.date.toISOString().split("T")[0],
-      doctor: labResult.doctor,
+      test_type: labResult.test_type,
+      test_date: labResult.test_date,
       results: labResult.results,
-      normalRange: labResult.normalRange,
-      status: labResult.status,
+      normal_range: labResult.normal_range || '',
+      interpretation: labResult.interpretation || '',
+      notes: labResult.notes || '',
     });
   };
 
@@ -98,58 +92,50 @@ const LabResultEditDialog = ({ labResult, onUpdate }: LabResultEditDialogProps) 
           onSubmit={handleSubmit}
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="testName">Test Name</Label>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="test_type">Test Type</Label>
               <Input
-                id="testName"
-                name="testName"
-                value={formData.testName}
+                id="test_type"
+                name="test_type"
+                value={formData.test_type}
                 onChange={handleChange}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="date">Date</Label>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="test_date">Test Date</Label>
               <Input
-                id="date"
-                name="date"
+                id="test_date"
+                name="test_date"
                 type="date"
-                value={formData.date}
+                value={formData.test_date}
                 onChange={handleChange}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="doctor">Doctor</Label>
-              <Input
-                id="doctor"
-                name="doctor"
-                value={formData.doctor}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Input
-                id="status"
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="space-y-2">
+            <div className="space-y-2 md:col-span-2">
               <Label htmlFor="results">Results</Label>
-              <Input
+              <Textarea
                 id="results"
                 name="results"
                 value={formData.results}
                 onChange={handleChange}
+                className="min-h-[100px]"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="normalRange">Normal Range</Label>
+              <Label htmlFor="normal_range">Normal Range</Label>
               <Input
-                id="normalRange"
-                name="normalRange"
-                value={formData.normalRange}
+                id="normal_range"
+                name="normal_range"
+                value={formData.normal_range}
+                onChange={handleChange}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="interpretation">Interpretation</Label>
+              <Input
+                id="interpretation"
+                name="interpretation"
+                value={formData.interpretation}
                 onChange={handleChange}
               />
             </div>
@@ -158,6 +144,8 @@ const LabResultEditDialog = ({ labResult, onUpdate }: LabResultEditDialogProps) 
               <Textarea
                 id="notes"
                 name="notes"
+                value={formData.notes}
+                onChange={handleChange}
                 placeholder="Additional notes about the lab result"
                 className="min-h-[100px]"
               />

@@ -1,6 +1,7 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { databaseService, type LabResult } from "@/services/databaseService";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,118 +36,49 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-// Mock lab results data
-const mockLabResults = [
-  {
-    id: "1",
-    name: "Complete Blood Count (CBC)",
-    date: new Date(2023, 5, 15),
-    doctor: "Dr. Michael Chen",
-    facility: "Main Hospital Lab",
-    status: "normal",
-    category: "blood",
-    results: [
-      { name: "White Blood Cell Count", value: "7.5", unit: "K/uL", range: "4.5-11.0" },
-      { name: "Red Blood Cell Count", value: "5.2", unit: "M/uL", range: "4.5-5.9" },
-      { name: "Hemoglobin", value: "14.2", unit: "g/dL", range: "13.5-17.5" },
-      { name: "Hematocrit", value: "42", unit: "%", range: "41-50" },
-      { name: "Platelet Count", value: "250", unit: "K/uL", range: "150-450" },
-    ],
-  },
-  {
-    id: "2",
-    name: "Lipid Panel",
-    date: new Date(2023, 5, 15),
-    doctor: "Dr. Sarah Johnson",
-    facility: "Cardiology Clinic",
-    status: "abnormal",
-    category: "blood",
-    results: [
-      { name: "Total Cholesterol", value: "210", unit: "mg/dL", range: "<200", flagged: true },
-      { name: "HDL Cholesterol", value: "45", unit: "mg/dL", range: ">40" },
-      { name: "LDL Cholesterol", value: "130", unit: "mg/dL", range: "<100", flagged: true },
-      { name: "Triglycerides", value: "180", unit: "mg/dL", range: "<150", flagged: true },
-    ],
-  },
-  {
-    id: "3",
-    name: "Comprehensive Metabolic Panel",
-    date: new Date(2023, 4, 1),
-    doctor: "Dr. Michael Chen",
-    facility: "Main Hospital Lab",
-    status: "normal",
-    category: "blood",
-    results: [
-      { name: "Glucose", value: "95", unit: "mg/dL", range: "70-99" },
-      { name: "Sodium", value: "140", unit: "mmol/L", range: "136-145" },
-      { name: "Potassium", value: "4.0", unit: "mmol/L", range: "3.5-5.0" },
-      { name: "Calcium", value: "9.5", unit: "mg/dL", range: "8.5-10.2" },
-      { name: "Creatinine", value: "0.9", unit: "mg/dL", range: "0.6-1.2" },
-      { name: "BUN", value: "15", unit: "mg/dL", range: "7-20" },
-    ],
-  },
-  {
-    id: "4",
-    name: "Urinalysis",
-    date: new Date(2023, 3, 18),
-    doctor: "Dr. Lisa Thompson",
-    facility: "Family Medicine Clinic",
-    status: "normal",
-    category: "urine",
-    results: [
-      { name: "Color", value: "Yellow", unit: "", range: "Yellow" },
-      { name: "Clarity", value: "Clear", unit: "", range: "Clear" },
-      { name: "pH", value: "5.5", unit: "", range: "5.0-8.0" },
-      { name: "Protein", value: "Negative", unit: "", range: "Negative" },
-      { name: "Glucose", value: "Negative", unit: "", range: "Negative" },
-      { name: "Ketones", value: "Negative", unit: "", range: "Negative" },
-    ],
-  },
-  {
-    id: "5",
-    name: "Thyroid Function Tests",
-    date: new Date(2023, 2, 10),
-    doctor: "Dr. Lisa Thompson",
-    facility: "Main Hospital Lab",
-    status: "normal",
-    category: "blood",
-    results: [
-      { name: "TSH", value: "2.5", unit: "mIU/L", range: "0.4-4.0" },
-      { name: "Free T4", value: "1.2", unit: "ng/dL", range: "0.8-1.8" },
-      { name: "Free T3", value: "3.1", unit: "pg/mL", range: "2.3-4.2" },
-    ],
-  },
-];
-
 const LabResults = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [labResults, setLabResults] = useState<LabResult[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLabResults = async () => {
+      setLoading(true);
+      const results = await databaseService.getLabResults();
+      setLabResults(results);
+      setLoading(false);
+    };
+
+    fetchLabResults();
+  }, []);
 
   // Filter lab results based on search query, category, and status
-  const filteredResults = mockLabResults.filter((result) => {
+  const filteredResults = labResults.filter((result) => {
+    const doctorName = result.doctors ? `${result.doctors.first_name} ${result.doctors.last_name}` : '';
     const matchesSearch =
-      result.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      result.doctor.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      result.facility.toLowerCase().includes(searchQuery.toLowerCase());
+      result.test_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      doctorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (result.notes && result.notes.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    const matchesCategory = categoryFilter === "all" || result.category === categoryFilter;
-    const matchesStatus = statusFilter === "all" || result.status === statusFilter;
+    const matchesCategory = categoryFilter === "all" || result.test_type.toLowerCase().includes(categoryFilter);
+    const matchesStatus = statusFilter === "all" || (result.interpretation && result.interpretation.toLowerCase() === statusFilter);
 
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "normal":
-        return <Badge className="bg-green-500">Normal</Badge>;
-      case "abnormal":
-        return <Badge variant="destructive">Abnormal</Badge>;
-      case "pending":
-        return <Badge variant="outline">Pending</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
+  const getStatusBadge = (interpretation?: string) => {
+    if (!interpretation) return <Badge variant="outline">Pending</Badge>;
+    
+    const status = interpretation.toLowerCase();
+    if (status.includes('normal')) {
+      return <Badge className="bg-green-500">Normal</Badge>;
+    } else if (status.includes('abnormal') || status.includes('high') || status.includes('low')) {
+      return <Badge variant="destructive">Abnormal</Badge>;
+    } else {
+      return <Badge variant="outline">{interpretation}</Badge>;
     }
   };
 
@@ -210,7 +142,11 @@ const LabResults = () => {
               </div>
             </div>
 
-            {filteredResults.length > 0 ? (
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <div className="text-muted-foreground">Loading lab results...</div>
+              </div>
+            ) : filteredResults.length > 0 ? (
               <div className="rounded-md border">
                 <Accordion type="single" collapsible className="w-full">
                   {filteredResults.map((result) => (
@@ -219,11 +155,11 @@ const LabResults = () => {
                         <div className="flex flex-1 flex-col md:flex-row md:items-center md:justify-between">
                           <div className="flex items-center gap-2 mb-2 md:mb-0">
                             <ClipboardList className="h-4 w-4 text-primary" />
-                            <span className="font-medium">{result.name}</span>
-                            {getStatusBadge(result.status)}
+                            <span className="font-medium">{result.test_type}</span>
+                            {getStatusBadge(result.interpretation)}
                           </div>
                           <div className="flex items-center text-sm text-muted-foreground">
-                            {result.date.toLocaleDateString()}
+                            {new Date(result.test_date).toLocaleDateString()}
                           </div>
                         </div>
                       </AccordionTrigger>
@@ -232,49 +168,47 @@ const LabResults = () => {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <p className="text-sm font-medium text-muted-foreground">Doctor</p>
-                              <p>{result.doctor}</p>
+                              <p>{result.doctors ? `${result.doctors.first_name} ${result.doctors.last_name}` : 'N/A'}</p>
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-muted-foreground">Facility</p>
-                              <p>{result.facility}</p>
+                              <p className="text-sm font-medium text-muted-foreground">Patient</p>
+                              <p>{result.patients ? `${result.patients.first_name} ${result.patients.last_name}` : 'N/A'}</p>
                             </div>
                             <div>
                               <p className="text-sm font-medium text-muted-foreground">Date</p>
-                              <p>{result.date.toLocaleDateString()}</p>
+                              <p>{new Date(result.test_date).toLocaleDateString()}</p>
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-muted-foreground">Category</p>
-                              <p>{result.category.charAt(0).toUpperCase() + result.category.slice(1)}</p>
+                              <p className="text-sm font-medium text-muted-foreground">Test Type</p>
+                              <p>{result.test_type}</p>
                             </div>
                           </div>
                           
                           <div>
-                            <h4 className="font-medium mb-2">Test Results</h4>
-                            <div className="rounded-md border">
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead>Test</TableHead>
-                                    <TableHead>Result</TableHead>
-                                    <TableHead>Unit</TableHead>
-                                    <TableHead>Reference Range</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {result.results.map((item, index) => (
-                                    <TableRow key={index}>
-                                      <TableCell>{item.name}</TableCell>
-                                      <TableCell className={item.flagged ? "text-red-500 font-medium" : ""}>
-                                        {item.value}
-                                      </TableCell>
-                                      <TableCell>{item.unit}</TableCell>
-                                      <TableCell>{item.range}</TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
+                            <h4 className="font-medium mb-2">Results</h4>
+                            <div className="rounded-md border p-4">
+                              <p className="whitespace-pre-wrap">{result.results}</p>
+                              {result.normal_range && (
+                                <div className="mt-2">
+                                  <p className="text-sm font-medium text-muted-foreground">Normal Range:</p>
+                                  <p className="text-sm">{result.normal_range}</p>
+                                </div>
+                              )}
+                              {result.interpretation && (
+                                <div className="mt-2">
+                                  <p className="text-sm font-medium text-muted-foreground">Interpretation:</p>
+                                  <p className="text-sm">{result.interpretation}</p>
+                                </div>
+                              )}
                             </div>
                           </div>
+                          
+                          {result.notes && (
+                            <div>
+                              <h4 className="font-medium mb-2">Notes</h4>
+                              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{result.notes}</p>
+                            </div>
+                          )}
                           
                           <div className="flex gap-2">
                             <Button

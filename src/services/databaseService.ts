@@ -58,6 +58,22 @@ export interface MedicalRecord {
   doctors?: Pick<Doctor, 'id' | 'first_name' | 'last_name' | 'specialty'>;
 }
 
+export interface LabResult {
+  id: string;
+  patient_id: string;
+  doctor_id: string;
+  test_date: string;
+  test_type: string;
+  results: string;
+  normal_range?: string;
+  interpretation?: string;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+  patients?: Pick<Patient, 'id' | 'first_name' | 'last_name'>;
+  doctors?: Pick<Doctor, 'id' | 'first_name' | 'last_name' | 'specialty'>;
+}
+
 export interface Notification {
   id: string;
   user_id: string;
@@ -294,6 +310,96 @@ class DatabaseService {
     }
 
     toast.success('Medical record created successfully');
+    return data;
+  }
+
+  // Lab Results operations
+  async getLabResults(): Promise<LabResult[]> {
+    const { data, error } = await supabase
+      .from('lab_results')
+      .select(`
+        *,
+        patients (
+          id,
+          first_name,
+          last_name
+        ),
+        doctors (
+          id,
+          first_name,
+          last_name,
+          specialty
+        )
+      `)
+      .order('test_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching lab results:', error);
+      toast.error('Failed to fetch lab results');
+      return [];
+    }
+
+    return data || [];
+  }
+
+  async createLabResult(labResult: Omit<LabResult, 'id' | 'created_at' | 'updated_at' | 'patients' | 'doctors'>): Promise<LabResult | null> {
+    const { data, error } = await supabase
+      .from('lab_results')
+      .insert([labResult])
+      .select(`
+        *,
+        patients (
+          id,
+          first_name,
+          last_name
+        ),
+        doctors (
+          id,
+          first_name,
+          last_name,
+          specialty
+        )
+      `)
+      .single();
+
+    if (error) {
+      console.error('Error creating lab result:', error);
+      toast.error('Failed to create lab result');
+      return null;
+    }
+
+    toast.success('Lab result created successfully');
+    return data;
+  }
+
+  async updateLabResult(id: string, updates: Partial<LabResult>): Promise<LabResult | null> {
+    const { data, error } = await supabase
+      .from('lab_results')
+      .update(updates)
+      .eq('id', id)
+      .select(`
+        *,
+        patients (
+          id,
+          first_name,
+          last_name
+        ),
+        doctors (
+          id,
+          first_name,
+          last_name,
+          specialty
+        )
+      `)
+      .single();
+
+    if (error) {
+      console.error('Error updating lab result:', error);
+      toast.error('Failed to update lab result');
+      return null;
+    }
+
+    toast.success('Lab result updated successfully');
     return data;
   }
 

@@ -1,6 +1,8 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { databaseService, type Patient, type Doctor } from "@/services/databaseService";
+import { useAuth } from "@/hooks/useAuth";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,18 +27,64 @@ import { ClipboardList, Upload } from "lucide-react";
 
 const NewLabResult = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [formData, setFormData] = useState({
+    test_type: '',
+    patient_id: '',
+    doctor_id: '',
+    test_date: '',
+    results: '',
+    normal_range: '',
+    interpretation: '',
+    notes: ''
+  });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const [patientsData, doctorsData] = await Promise.all([
+        databaseService.getPatients(),
+        databaseService.getDoctors()
+      ]);
+      setPatients(patientsData);
+      setDoctors(doctorsData);
+    };
+    fetchData();
+  }, []);
   
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
+
+    try {
+      const labResultData = {
+        test_type: formData.test_type,
+        patient_id: formData.patient_id,
+        doctor_id: formData.doctor_id,
+        test_date: formData.test_date,
+        results: formData.results,
+        normal_range: formData.normal_range || undefined,
+        interpretation: formData.interpretation || undefined,
+        notes: formData.notes || undefined,
+      };
+
+      const result = await databaseService.createLabResult(labResultData);
+      
+      if (result) {
+        navigate("/lab-results");
+      }
+    } catch (error) {
+      console.error('Error creating lab result:', error);
+      toast.error('Failed to create lab result');
+    } finally {
       setIsLoading(false);
-      toast.success("Lab test requested successfully");
-      navigate("/lab-results");
-    }, 1000);
+    }
+  };
+
+  const handleChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
   
   return (
@@ -61,98 +109,107 @@ const NewLabResult = () => {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="test-name">Test Name</Label>
-                    <Input id="test-name" placeholder="Complete Blood Count (CBC)" required />
-                  </div>
-                  
-                  <div className="space-y-2">
                     <Label htmlFor="test-type">Test Type</Label>
-                    <Select required>
-                      <SelectTrigger id="test-type">
-                        <SelectValue placeholder="Select test type" />
+                    <Input 
+                      id="test-type" 
+                      placeholder="Complete Blood Count (CBC)" 
+                      value={formData.test_type}
+                      onChange={(e) => handleChange('test_type', e.target.value)}
+                      required 
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="patient">Patient</Label>
+                    <Select 
+                      value={formData.patient_id} 
+                      onValueChange={(value) => handleChange('patient_id', value)}
+                      required
+                    >
+                      <SelectTrigger id="patient">
+                        <SelectValue placeholder="Select patient" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="blood">Blood Test</SelectItem>
-                        <SelectItem value="urine">Urine Test</SelectItem>
-                        <SelectItem value="imaging">Imaging</SelectItem>
-                        <SelectItem value="pathology">Pathology</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        {patients.map((patient) => (
+                          <SelectItem key={patient.id} value={patient.id}>
+                            {patient.first_name} {patient.last_name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="lab-facility">Lab Facility</Label>
-                    <Select required>
-                      <SelectTrigger id="lab-facility">
-                        <SelectValue placeholder="Select lab facility" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="main-hospital">Main Hospital Lab</SelectItem>
-                        <SelectItem value="quest">Quest Diagnostics</SelectItem>
-                        <SelectItem value="labcorp">LabCorp</SelectItem>
-                        <SelectItem value="clinica">Clinica Laboratory</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="requested-date">Requested Date</Label>
-                    <Input id="requested-date" type="date" required />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="requested-by">Requested By</Label>
-                    <Select required>
-                      <SelectTrigger id="requested-by">
+                    <Label htmlFor="doctor">Doctor</Label>
+                    <Select 
+                      value={formData.doctor_id} 
+                      onValueChange={(value) => handleChange('doctor_id', value)}
+                      required
+                    >
+                      <SelectTrigger id="doctor">
                         <SelectValue placeholder="Select doctor" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="dr-johnson">Dr. Sarah Johnson</SelectItem>
-                        <SelectItem value="dr-chen">Dr. Michael Chen</SelectItem>
-                        <SelectItem value="dr-rodriguez">Dr. Emily Rodriguez</SelectItem>
-                        <SelectItem value="dr-wilson">Dr. James Wilson</SelectItem>
-                        <SelectItem value="dr-thompson">Dr. Lisa Thompson</SelectItem>
+                        {doctors.map((doctor) => (
+                          <SelectItem key={doctor.id} value={doctor.id}>
+                            Dr. {doctor.first_name} {doctor.last_name} ({doctor.specialty})
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                   
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="reason">Reason for Test</Label>
-                    <Textarea 
-                      id="reason" 
-                      placeholder="Explain why this test is being requested" 
-                      className="min-h-[100px]" 
-                      required
+                    <Label htmlFor="test-date">Test Date</Label>
+                    <Input 
+                      id="test-date" 
+                      type="date" 
+                      value={formData.test_date}
+                      onChange={(e) => handleChange('test_date', e.target.value)}
+                      required 
                     />
                   </div>
                   
                   <div className="space-y-2 md:col-span-2">
-                    <Label>Have Results Already?</Label>
-                    <div className="border-2 border-dashed rounded-md p-6 flex flex-col items-center justify-center gap-4">
-                      <div className="bg-muted rounded-full p-2">
-                        <Upload className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm font-medium">Drag and drop lab results here or click to browse</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Supports PDF, JPG, PNG (max 5MB)
-                        </p>
-                      </div>
-                      <Input id="results-file" type="file" className="hidden" />
-                      <Button type="button" variant="outline" size="sm" onClick={() => document.getElementById('results-file')?.click()}>
-                        Upload Results
-                      </Button>
-                    </div>
+                    <Label htmlFor="results">Test Results</Label>
+                    <Textarea 
+                      id="results" 
+                      placeholder="Enter the test results..." 
+                      className="min-h-[100px]"
+                      value={formData.results}
+                      onChange={(e) => handleChange('results', e.target.value)}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="normal-range">Normal Range (Optional)</Label>
+                    <Input 
+                      id="normal-range" 
+                      placeholder="e.g., 4.5-11.0 K/uL"
+                      value={formData.normal_range}
+                      onChange={(e) => handleChange('normal_range', e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="interpretation">Interpretation (Optional)</Label>
+                    <Input 
+                      id="interpretation" 
+                      placeholder="e.g., Normal, Abnormal, High, Low"
+                      value={formData.interpretation}
+                      onChange={(e) => handleChange('interpretation', e.target.value)}
+                    />
                   </div>
                   
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="notes">Special Instructions</Label>
+                    <Label htmlFor="notes">Additional Notes (Optional)</Label>
                     <Textarea 
                       id="notes" 
-                      placeholder="Any special instructions for the lab" 
+                      placeholder="Any additional notes about the test results..."
                       className="min-h-[80px]"
+                      value={formData.notes}
+                      onChange={(e) => handleChange('notes', e.target.value)}
                     />
                   </div>
                 </div>
