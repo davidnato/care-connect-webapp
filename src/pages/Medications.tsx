@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -39,85 +38,39 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { formatDate } from "@/lib/utils";
+import { databaseService, Medication } from "@/services/databaseService";
 import { toast } from "sonner";
-
-// Mock medications data
-const mockMedications = [
-  {
-    id: "1",
-    name: "Lisinopril",
-    dosage: "10mg",
-    frequency: "Once daily",
-    startDate: new Date(2023, 5, 1),
-    endDate: new Date(2023, 8, 1),
-    prescribedBy: "Dr. Sarah Johnson",
-    status: "active",
-    instructions: "Take in the morning with food",
-    purpose: "Blood pressure control",
-  },
-  {
-    id: "2",
-    name: "Metformin",
-    dosage: "500mg",
-    frequency: "Twice daily",
-    startDate: new Date(2023, 4, 15),
-    endDate: new Date(2023, 10, 15),
-    prescribedBy: "Dr. Michael Chen",
-    status: "active",
-    instructions: "Take with meals",
-    purpose: "Blood sugar control",
-  },
-  {
-    id: "3",
-    name: "Atorvastatin",
-    dosage: "20mg",
-    frequency: "Once daily",
-    startDate: new Date(2023, 3, 10),
-    endDate: new Date(2023, 9, 10),
-    prescribedBy: "Dr. Sarah Johnson",
-    status: "active",
-    instructions: "Take at night",
-    purpose: "Cholesterol control",
-  },
-  {
-    id: "4",
-    name: "Sertraline",
-    dosage: "50mg",
-    frequency: "Once daily",
-    startDate: new Date(2023, 2, 1),
-    endDate: new Date(2023, 5, 1),
-    prescribedBy: "Dr. Lisa Thompson",
-    status: "completed",
-    instructions: "Take in the morning",
-    purpose: "Anxiety management",
-  },
-  {
-    id: "5",
-    name: "Amoxicillin",
-    dosage: "500mg",
-    frequency: "Three times daily",
-    startDate: new Date(2023, 1, 15),
-    endDate: new Date(2023, 1, 25),
-    prescribedBy: "Dr. James Wilson",
-    status: "completed",
-    instructions: "Take with or without food",
-    purpose: "Infection treatment",
-  },
-];
 
 const Medications = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [medications, setMedications] = useState<Medication[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
+
+  useEffect(() => {
+    loadMedications();
+  }, []);
+
+  const loadMedications = async () => {
+    setLoading(true);
+    const medicationsData = await databaseService.getMedications();
+    setMedications(medicationsData);
+    setLoading(false);
+  };
 
   // Filter medications based on search query and status
-  const filteredMedications = mockMedications.filter((medication) => {
+  const filteredMedications = medications.filter((medication) => {
+    const doctorName = medication.doctors ? `${medication.doctors.first_name} ${medication.doctors.last_name}` : '';
+    const patientName = medication.patients ? `${medication.patients.first_name} ${medication.patients.last_name}` : '';
+    
     const matchesSearch =
       medication.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       medication.dosage.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      medication.prescribedBy.toLowerCase().includes(searchQuery.toLowerCase());
+      doctorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      patientName.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus = statusFilter === "all" || medication.status === statusFilter;
 
@@ -137,17 +90,45 @@ const Medications = () => {
     }
   };
 
-  const handleAddMedication = (e: React.FormEvent) => {
+  const handleAddMedication = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setFormLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
-      setIsAddDialogOpen(false);
-      toast.success("Medication added successfully");
-    }, 1000);
+    const formData = new FormData(e.target as HTMLFormElement);
+    
+    // For now, we'll show a message that the functionality needs patient/doctor selection
+    toast.info("Medication management requires patient and doctor assignment. This feature will be enhanced.");
+    
+    setFormLoading(false);
+    setIsAddDialogOpen(false);
   };
+
+  const handleDiscontinueMedication = async (medicationId: string, medicationName: string) => {
+    const updatedMedication = await databaseService.updateMedication(medicationId, { status: 'discontinued' });
+    if (updatedMedication) {
+      setMedications(
+        medications.map((medication) =>
+          medication.id === medicationId
+            ? { ...medication, status: 'discontinued' }
+            : medication
+        )
+      );
+      toast.success(`${medicationName} marked as discontinued`);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-2 text-muted-foreground">Loading medications...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -178,45 +159,50 @@ const Medications = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="name">Medication Name</Label>
-                      <Input id="name" placeholder="e.g., Lisinopril" required />
+                      <Input id="name" name="name" placeholder="e.g., Lisinopril" required />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="dosage">Dosage</Label>
-                      <Input id="dosage" placeholder="e.g., 10mg" required />
+                      <Input id="dosage" name="dosage" placeholder="e.g., 10mg" required />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="frequency">Frequency</Label>
-                      <Input id="frequency" placeholder="e.g., Once daily" required />
+                      <Input id="frequency" name="frequency" placeholder="e.g., Once daily" required />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="prescribedBy">Prescribed By</Label>
-                      <Input id="prescribedBy" placeholder="e.g., Dr. Smith" required />
+                      <Label htmlFor="startDate">Start Date</Label>
+                      <Input id="startDate" name="startDate" type="date" required />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="startDate">Start Date</Label>
-                      <Input id="startDate" type="date" required />
+                      <Label htmlFor="endDate">End Date</Label>
+                      <Input id="endDate" name="endDate" type="date" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="endDate">End Date</Label>
-                      <Input id="endDate" type="date" />
+                      <Label htmlFor="status">Status</Label>
+                      <Select name="status" defaultValue="active">
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="discontinued">Discontinued</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="purpose">Purpose</Label>
-                    <Input id="purpose" placeholder="What is this medication for?" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="instructions">Instructions</Label>
-                    <Input id="instructions" placeholder="Special instructions" />
+                    <Label htmlFor="notes">Notes</Label>
+                    <Input id="notes" name="notes" placeholder="Special instructions or notes" />
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button type="submit" disabled={loading}>
-                    {loading ? "Adding..." : "Add Medication"}
+                  <Button type="submit" disabled={formLoading}>
+                    {formLoading ? "Adding..." : "Add Medication"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -235,7 +221,7 @@ const Medications = () => {
                 <div className="relative">
                   <Search className="absolute left-2 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search by name, dosage, or doctor..."
+                    placeholder="Search by name, dosage, doctor, or patient..."
                     className="pl-8"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -263,7 +249,7 @@ const Medications = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Medication</TableHead>
-                      <TableHead className="hidden md:table-cell">Dosage & Frequency</TableHead>
+                      <TableHead className="hidden md:table-cell">Patient</TableHead>
                       <TableHead className="hidden md:table-cell">Prescribed By</TableHead>
                       <TableHead>Dates</TableHead>
                       <TableHead>Status</TableHead>
@@ -276,30 +262,35 @@ const Medications = () => {
                         <TableCell className="font-medium">
                           <div className="flex flex-col">
                             <span>{medication.name}</span>
-                            <span className="text-xs text-muted-foreground md:hidden">
+                            <span className="text-xs text-muted-foreground">
                               {medication.dosage}, {medication.frequency}
                             </span>
                           </div>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          <div className="flex flex-col">
-                            <span>{medication.dosage}</span>
-                            <span className="text-xs text-muted-foreground">{medication.frequency}</span>
-                          </div>
+                          {medication.patients ? 
+                            `${medication.patients.first_name} ${medication.patients.last_name}` :
+                            'Unknown Patient'
+                          }
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          {medication.prescribedBy}
+                          {medication.doctors ? 
+                            `Dr. ${medication.doctors.first_name} ${medication.doctors.last_name}` :
+                            'Unknown Doctor'
+                          }
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col">
                             <div className="flex items-center">
                               <Calendar className="mr-1 h-3 w-3" />
-                              <span className="text-xs">Start: {formatDate(medication.startDate)}</span>
+                              <span className="text-xs">Start: {new Date(medication.start_date).toLocaleDateString()}</span>
                             </div>
-                            <div className="flex items-center text-muted-foreground">
-                              <Clock className="mr-1 h-3 w-3" />
-                              <span className="text-xs">End: {formatDate(medication.endDate)}</span>
-                            </div>
+                            {medication.end_date && (
+                              <div className="flex items-center text-muted-foreground">
+                                <Clock className="mr-1 h-3 w-3" />
+                                <span className="text-xs">End: {new Date(medication.end_date).toLocaleDateString()}</span>
+                              </div>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>{getStatusBadge(medication.status)}</TableCell>
@@ -316,9 +307,7 @@ const Medications = () => {
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() => {
-                                  toast.success(`${medication.name} marked as discontinued`);
-                                }}
+                                onClick={() => handleDiscontinueMedication(medication.id, medication.name)}
                               >
                                 Discontinue
                               </Button>

@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -30,88 +29,65 @@ import {
 } from "@/components/ui/select";
 import { formatDate } from "@/lib/utils";
 import AppointmentEditDialog from "@/components/appointments/AppointmentEditDialog";
+import { databaseService, Appointment } from "@/services/databaseService";
 import { toast } from "sonner";
-
-// Mock appointments data
-const mockAppointments = [
-  {
-    id: "1",
-    doctor: "Dr. Sarah Johnson",
-    specialty: "Cardiology",
-    location: "Main Hospital, Room 302",
-    date: new Date(2023, 6, 15, 10, 30),
-    status: "upcoming",
-  },
-  {
-    id: "2",
-    doctor: "Dr. Michael Chen",
-    specialty: "Dermatology",
-    location: "Medical Center, Suite 205",
-    date: new Date(2023, 6, 22, 14, 0),
-    status: "upcoming",
-  },
-  {
-    id: "3",
-    doctor: "Dr. Emily Rodriguez",
-    specialty: "Neurology",
-    location: "Neurology Clinic, Floor 4",
-    date: new Date(2023, 5, 30, 9, 0),
-    status: "completed",
-  },
-  {
-    id: "4",
-    doctor: "Dr. James Wilson",
-    specialty: "Orthopedics",
-    location: "Sports Medicine Center",
-    date: new Date(2023, 5, 20, 11, 30),
-    status: "completed",
-  },
-  {
-    id: "5",
-    doctor: "Dr. Lisa Thompson",
-    specialty: "Family Medicine",
-    location: "Community Health Center",
-    date: new Date(2023, 5, 10, 16, 0),
-    status: "cancelled",
-  },
-];
 
 const Appointments = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [appointments, setAppointments] = useState(mockAppointments);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadAppointments();
+  }, []);
+
+  const loadAppointments = async () => {
+    setLoading(true);
+    const appointmentsData = await databaseService.getAppointments();
+    setAppointments(appointmentsData);
+    setLoading(false);
+  };
 
   // Handle updating an appointment
-  const handleUpdateAppointment = (appointmentId: string, updatedData: Partial<typeof appointments[0]>) => {
-    setAppointments(
-      appointments.map((appointment) =>
-        appointment.id === appointmentId
-          ? { ...appointment, ...updatedData }
-          : appointment
-      )
-    );
+  const handleUpdateAppointment = async (appointmentId: string, updatedData: Partial<Appointment>) => {
+    const updatedAppointment = await databaseService.updateAppointment(appointmentId, updatedData);
+    if (updatedAppointment) {
+      setAppointments(
+        appointments.map((appointment) =>
+          appointment.id === appointmentId
+            ? { ...appointment, ...updatedAppointment }
+            : appointment
+        )
+      );
+    }
   };
 
   // Handle canceling an appointment
-  const handleCancelAppointment = (appointmentId: string) => {
-    // In a real app, this would call an API
-    setAppointments(
-      appointments.map((appointment) =>
-        appointment.id === appointmentId
-          ? { ...appointment, status: "cancelled" }
-          : appointment
-      )
-    );
-    toast.success("Appointment cancelled successfully");
+  const handleCancelAppointment = async (appointmentId: string) => {
+    const updatedAppointment = await databaseService.updateAppointment(appointmentId, { status: 'cancelled' });
+    if (updatedAppointment) {
+      setAppointments(
+        appointments.map((appointment) =>
+          appointment.id === appointmentId
+            ? { ...appointment, status: 'cancelled' }
+            : appointment
+        )
+      );
+      toast.success("Appointment cancelled successfully");
+    }
   };
 
   // Filter appointments based on search query and status
   const filteredAppointments = appointments.filter((appointment) => {
+    const doctorName = appointment.doctors ? `${appointment.doctors.first_name} ${appointment.doctors.last_name}` : '';
+    const patientName = appointment.patients ? `${appointment.patients.first_name} ${appointment.patients.last_name}` : '';
+    
     const matchesSearch =
-      appointment.doctor.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      appointment.specialty.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      appointment.location.toLowerCase().includes(searchQuery.toLowerCase());
+      doctorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      appointment.reason.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus = statusFilter === "all" || appointment.status === statusFilter;
 
@@ -120,8 +96,8 @@ const Appointments = () => {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "upcoming":
-        return <Badge className="bg-blue-500">Upcoming</Badge>;
+      case "scheduled":
+        return <Badge className="bg-blue-500">Scheduled</Badge>;
       case "completed":
         return <Badge className="bg-green-500">Completed</Badge>;
       case "cancelled":
@@ -130,6 +106,19 @@ const Appointments = () => {
         return <Badge>{status}</Badge>;
     }
   };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-2 text-muted-foreground">Loading appointments...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -157,7 +146,7 @@ const Appointments = () => {
                 <div className="relative">
                   <Search className="absolute left-2 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search by doctor, specialty, or location..."
+                    placeholder="Search by doctor, patient, or reason..."
                     className="pl-8"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -171,7 +160,7 @@ const Appointments = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Appointments</SelectItem>
-                    <SelectItem value="upcoming">Upcoming</SelectItem>
+                    <SelectItem value="scheduled">Scheduled</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
                     <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
@@ -184,10 +173,10 @@ const Appointments = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Doctor</TableHead>
-                      <TableHead className="hidden md:table-cell">Specialty</TableHead>
-                      <TableHead className="hidden md:table-cell">Location</TableHead>
+                      <TableHead>Patient</TableHead>
+                      <TableHead className="hidden md:table-cell">Doctor</TableHead>
                       <TableHead>Date & Time</TableHead>
+                      <TableHead>Reason</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -196,31 +185,30 @@ const Appointments = () => {
                     {filteredAppointments.map((appointment) => (
                       <TableRow key={appointment.id}>
                         <TableCell className="font-medium">
-                          {appointment.doctor}
+                          {appointment.patients ? 
+                            `${appointment.patients.first_name} ${appointment.patients.last_name}` :
+                            'Unknown Patient'
+                          }
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          {appointment.specialty}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          {appointment.location}
+                          {appointment.doctors ? 
+                            `Dr. ${appointment.doctors.first_name} ${appointment.doctors.last_name}` :
+                            'Unknown Doctor'
+                          }
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col">
                             <div className="flex items-center">
                               <CalendarIcon className="mr-1 h-3 w-3" />
-                              <span>{formatDate(appointment.date)}</span>
+                              <span>{new Date(appointment.date).toLocaleDateString()}</span>
                             </div>
                             <div className="flex items-center text-muted-foreground">
                               <Clock className="mr-1 h-3 w-3" />
-                              <span>
-                                {appointment.date.toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </span>
+                              <span>{appointment.time}</span>
                             </div>
                           </div>
                         </TableCell>
+                        <TableCell>{appointment.reason}</TableCell>
                         <TableCell>{getStatusBadge(appointment.status)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
@@ -233,7 +221,7 @@ const Appointments = () => {
                             >
                               View
                             </Button>
-                            {appointment.status === "upcoming" && (
+                            {appointment.status === "scheduled" && (
                               <>
                                 <AppointmentEditDialog
                                   appointment={appointment}

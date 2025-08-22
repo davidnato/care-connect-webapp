@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -10,16 +9,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Search, Filter, Download } from "lucide-react";
+import { FileText, Search, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -35,83 +26,29 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import MedicalRecordEditDialog from "@/components/records/MedicalRecordEditDialog";
-import { toast } from "sonner";
-
-// Mock medical records data
-const mockMedicalRecords = [
-  {
-    id: "1",
-    type: "Visit Summary",
-    doctor: "Dr. Sarah Johnson",
-    specialty: "Cardiology",
-    date: new Date(2023, 5, 28),
-    description: "Annual physical examination",
-    category: "exam",
-  },
-  {
-    id: "2",
-    type: "Lab Results",
-    doctor: "Dr. Michael Chen",
-    specialty: "Internal Medicine",
-    date: new Date(2023, 5, 15),
-    description: "Blood work panel including CBC, lipid profile",
-    category: "lab",
-  },
-  {
-    id: "3",
-    type: "Imaging Report",
-    doctor: "Dr. Emily Rodriguez",
-    specialty: "Radiology",
-    date: new Date(2023, 4, 30),
-    description: "Chest X-ray results",
-    category: "imaging",
-  },
-  {
-    id: "4",
-    type: "Surgery Report",
-    doctor: "Dr. James Wilson",
-    specialty: "Orthopedics",
-    date: new Date(2023, 3, 20),
-    description: "Arthroscopic surgery on right knee",
-    category: "procedure",
-  },
-  {
-    id: "5",
-    type: "Visit Summary",
-    doctor: "Dr. Lisa Thompson",
-    specialty: "Family Medicine",
-    date: new Date(2023, 2, 10),
-    description: "Follow-up for hypertension management",
-    category: "exam",
-  },
-  {
-    id: "6",
-    type: "Prescription",
-    doctor: "Dr. Sarah Johnson",
-    specialty: "Cardiology",
-    date: new Date(2023, 1, 5),
-    description: "Lisinopril 10mg for blood pressure control",
-    category: "medication",
-  },
-  {
-    id: "7",
-    type: "Vaccination Record",
-    doctor: "Dr. Lisa Thompson",
-    specialty: "Family Medicine",
-    date: new Date(2023, 0, 15),
-    description: "Annual flu vaccination",
-    category: "immunization",
-  },
-];
+import { databaseService, MedicalRecord } from "@/services/databaseService";
 
 const MedicalRecords = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [records, setRecords] = useState(mockMedicalRecords);
+  const [records, setRecords] = useState<MedicalRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadMedicalRecords();
+  }, []);
+
+  const loadMedicalRecords = async () => {
+    setLoading(true);
+    const recordsData = await databaseService.getMedicalRecords();
+    setRecords(recordsData);
+    setLoading(false);
+  };
 
   // Handle updating a medical record
-  const handleUpdateRecord = (recordId: string, updatedData: Partial<typeof records[0]>) => {
+  const handleUpdateRecord = async (recordId: string, updatedData: Partial<MedicalRecord>) => {
+    // For now, just update the local state (placeholder for real implementation)
     setRecords(
       records.map((record) =>
         record.id === recordId
@@ -123,34 +60,30 @@ const MedicalRecords = () => {
 
   // Filter records based on search query and category
   const filteredRecords = records.filter((record) => {
+    const doctorName = record.doctors ? `${record.doctors.first_name} ${record.doctors.last_name}` : '';
+    const patientName = record.patients ? `${record.patients.first_name} ${record.patients.last_name}` : '';
+    
     const matchesSearch =
-      record.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      record.doctor.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      record.description.toLowerCase().includes(searchQuery.toLowerCase());
+      record.diagnosis.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      record.treatment.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      doctorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      patientName.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesCategory = categoryFilter === "all" || record.category === categoryFilter;
-
-    return matchesSearch && matchesCategory;
+    return matchesSearch;
   });
 
-  const getCategoryBadge = (category: string) => {
-    switch (category) {
-      case "exam":
-        return <Badge className="bg-blue-500">Exam</Badge>;
-      case "lab":
-        return <Badge className="bg-purple-500">Lab</Badge>;
-      case "imaging":
-        return <Badge className="bg-orange-500">Imaging</Badge>;
-      case "procedure":
-        return <Badge className="bg-red-500">Procedure</Badge>;
-      case "medication":
-        return <Badge className="bg-green-500">Medication</Badge>;
-      case "immunization":
-        return <Badge className="bg-teal-500">Immunization</Badge>;
-      default:
-        return <Badge>{category}</Badge>;
-    }
-  };
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-2 text-muted-foreground">Loading medical records...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -162,8 +95,8 @@ const MedicalRecords = () => {
               Access and manage your healthcare records
             </p>
           </div>
-          <Button onClick={() => navigate("/records/request")}>
-            Request New Records
+          <Button onClick={() => navigate("/records/new")}>
+            Create New Record
           </Button>
         </div>
 
@@ -171,7 +104,7 @@ const MedicalRecords = () => {
           <CardHeader>
             <CardTitle>Your Health Records</CardTitle>
             <CardDescription>
-              View and download your complete health history
+              View your complete health history
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -180,28 +113,12 @@ const MedicalRecords = () => {
                 <div className="relative">
                   <Search className="absolute left-2 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search by type, doctor, or description..."
+                    placeholder="Search by diagnosis, treatment, or doctor..."
                     className="pl-8"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
-              </div>
-              <div className="w-full md:w-[200px]">
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filter by category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Records</SelectItem>
-                    <SelectItem value="exam">Exams</SelectItem>
-                    <SelectItem value="lab">Lab Results</SelectItem>
-                    <SelectItem value="imaging">Imaging</SelectItem>
-                    <SelectItem value="procedure">Procedures</SelectItem>
-                    <SelectItem value="medication">Medications</SelectItem>
-                    <SelectItem value="immunization">Immunizations</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </div>
 
@@ -214,11 +131,10 @@ const MedicalRecords = () => {
                         <div className="flex flex-1 flex-col md:flex-row md:items-center md:justify-between">
                           <div className="flex items-center gap-2 mb-2 md:mb-0">
                             <FileText className="h-4 w-4 text-primary" />
-                            <span className="font-medium">{record.type}</span>
-                            {getCategoryBadge(record.category)}
+                            <span className="font-medium">{record.diagnosis}</span>
                           </div>
                           <div className="flex items-center text-sm text-muted-foreground">
-                            {record.date.toLocaleDateString()}
+                            {new Date(record.date).toLocaleDateString()}
                           </div>
                         </div>
                       </AccordionTrigger>
@@ -227,25 +143,43 @@ const MedicalRecords = () => {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <p className="text-sm font-medium text-muted-foreground">Doctor</p>
-                              <p>{record.doctor}</p>
+                              <p>
+                                {record.doctors ? 
+                                  `Dr. ${record.doctors.first_name} ${record.doctors.last_name}` :
+                                  'Unknown Doctor'
+                                }
+                              </p>
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-muted-foreground">Specialty</p>
-                              <p>{record.specialty}</p>
+                              <p className="text-sm font-medium text-muted-foreground">Patient</p>
+                              <p>
+                                {record.patients ? 
+                                  `${record.patients.first_name} ${record.patients.last_name}` :
+                                  'Unknown Patient'
+                                }
+                              </p>
                             </div>
                             <div>
                               <p className="text-sm font-medium text-muted-foreground">Date</p>
-                              <p>{record.date.toLocaleDateString()}</p>
+                              <p>{new Date(record.date).toLocaleDateString()}</p>
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-muted-foreground">Category</p>
-                              <p>{record.category.charAt(0).toUpperCase() + record.category.slice(1)}</p>
+                              <p className="text-sm font-medium text-muted-foreground">Treatment</p>
+                              <p>{record.treatment}</p>
                             </div>
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-muted-foreground">Description</p>
-                            <p>{record.description}</p>
-                          </div>
+                          {record.prescription && (
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground">Prescription</p>
+                              <p>{record.prescription}</p>
+                            </div>
+                          )}
+                          {record.notes && (
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground">Notes</p>
+                              <p>{record.notes}</p>
+                            </div>
+                          )}
                           <div className="flex gap-2">
                             <Button
                               variant="outline"
@@ -280,12 +214,12 @@ const MedicalRecords = () => {
                 <FileText className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium">No records found</h3>
                 <p className="text-muted-foreground mb-4">
-                  {searchQuery || categoryFilter !== "all"
-                    ? "Try adjusting your filters"
+                  {searchQuery
+                    ? "Try adjusting your search"
                     : "You don't have any medical records yet"}
                 </p>
-                <Button onClick={() => navigate("/records/request")}>
-                  Request Medical Records
+                <Button onClick={() => navigate("/records/new")}>
+                  Create Medical Record
                 </Button>
               </div>
             )}

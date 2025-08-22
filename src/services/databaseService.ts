@@ -74,6 +74,23 @@ export interface LabResult {
   doctors?: Pick<Doctor, 'id' | 'first_name' | 'last_name' | 'specialty'>;
 }
 
+export interface Medication {
+  id: string;
+  patient_id: string;
+  doctor_id: string;
+  name: string;
+  dosage: string;
+  frequency: string;
+  start_date: string;
+  end_date?: string;
+  notes?: string;
+  status: 'active' | 'completed' | 'discontinued';
+  created_at?: string;
+  updated_at?: string;
+  patients?: Pick<Patient, 'id' | 'first_name' | 'last_name'>;
+  doctors?: Pick<Doctor, 'id' | 'first_name' | 'last_name' | 'specialty'>;
+}
+
 export interface Notification {
   id: string;
   user_id: string;
@@ -430,6 +447,105 @@ class DatabaseService {
     }
 
     return true;
+  }
+
+  // Medications operations
+  async getMedications(): Promise<Medication[]> {
+    const { data, error } = await supabase
+      .from('medications')
+      .select(`
+        *,
+        patients (
+          id,
+          first_name,
+          last_name
+        ),
+        doctors (
+          id,
+          first_name,
+          last_name,
+          specialty
+        )
+      `)
+      .order('start_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching medications:', error);
+      toast.error('Failed to fetch medications');
+      return [];
+    }
+
+    return (data || []).map(medication => ({
+      ...medication,
+      status: 'active' as 'active' | 'completed' | 'discontinued'
+    }));
+  }
+
+  async createMedication(medication: Omit<Medication, 'id' | 'created_at' | 'updated_at' | 'patients' | 'doctors'>): Promise<Medication | null> {
+    const { data, error } = await supabase
+      .from('medications')
+      .insert([medication])
+      .select(`
+        *,
+        patients (
+          id,
+          first_name,
+          last_name
+        ),
+        doctors (
+          id,
+          first_name,
+          last_name,
+          specialty
+        )
+      `)
+      .single();
+
+    if (error) {
+      console.error('Error creating medication:', error);
+      toast.error('Failed to create medication');
+      return null;
+    }
+
+    toast.success('Medication created successfully');
+    return {
+      ...data,
+      status: 'active' as 'active' | 'completed' | 'discontinued'
+    };
+  }
+
+  async updateMedication(id: string, updates: Partial<Medication>): Promise<Medication | null> {
+    const { data, error } = await supabase
+      .from('medications')
+      .update(updates)
+      .eq('id', id)
+      .select(`
+        *,
+        patients (
+          id,
+          first_name,
+          last_name
+        ),
+        doctors (
+          id,
+          first_name,
+          last_name,
+          specialty
+        )
+      `)
+      .single();
+
+    if (error) {
+      console.error('Error updating medication:', error);
+      toast.error('Failed to update medication');
+      return null;
+    }
+
+    toast.success('Medication updated successfully');
+    return {
+      ...data,
+      status: 'active' as 'active' | 'completed' | 'discontinued'
+    };
   }
 
   async getCurrentUserProfile() {

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -14,35 +13,22 @@ import {
 import { toast } from "sonner";
 import RecordUpdateForm from "../forms/RecordUpdateForm";
 import { Pencil } from "lucide-react";
-
-interface Appointment {
-  id: string;
-  doctor: string;
-  specialty: string;
-  location: string;
-  date: Date;
-  status: string;
-}
+import { Appointment } from "@/services/databaseService";
 
 interface AppointmentEditDialogProps {
   appointment: Appointment;
-  onUpdate: (appointmentId: string, updatedData: Partial<Appointment>) => void;
+  onUpdate: (appointmentId: string, updatedData: Partial<Appointment>) => Promise<void>;
 }
 
 const AppointmentEditDialog = ({ appointment, onUpdate }: AppointmentEditDialogProps) => {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    doctor: appointment.doctor,
-    specialty: appointment.specialty,
-    location: appointment.location,
-    date: appointment.date.toISOString().split("T")[0],
-    time: appointment.date.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }),
+    date: appointment.date,
+    time: appointment.time,
+    reason: appointment.reason,
     status: appointment.status,
+    notes: appointment.notes || '',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,47 +40,37 @@ const AppointmentEditDialog = ({ appointment, onUpdate }: AppointmentEditDialogP
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Create a new date object from the date and time inputs
-    const [year, month, day] = formData.date.split("-").map(Number);
-    const [hours, minutes] = formData.time.split(":").map(Number);
-    const updatedDate = new Date(year, month - 1, day, hours, minutes);
-
-    // Prepare the updated appointment data
-    const updatedAppointment = {
-      doctor: formData.doctor,
-      specialty: formData.specialty,
-      location: formData.location,
-      date: updatedDate,
-      status: formData.status,
-    };
-
-    // Simulate API call
-    setTimeout(() => {
-      onUpdate(appointment.id, updatedAppointment);
+    try {
+      await onUpdate(appointment.id, {
+        date: formData.date,
+        time: formData.time,
+        reason: formData.reason,
+        status: formData.status as 'scheduled' | 'completed' | 'cancelled',
+        notes: formData.notes,
+      });
+      
       setIsLoading(false);
       setOpen(false);
       toast.success("Appointment updated successfully");
-    }, 1000);
+    } catch (error) {
+      setIsLoading(false);
+      toast.error("Failed to update appointment");
+    }
   };
 
   const handleCancel = () => {
     setOpen(false);
     // Reset form data to original values
     setFormData({
-      doctor: appointment.doctor,
-      specialty: appointment.specialty,
-      location: appointment.location,
-      date: appointment.date.toISOString().split("T")[0],
-      time: appointment.date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      }),
+      date: appointment.date,
+      time: appointment.time,
+      reason: appointment.reason,
       status: appointment.status,
+      notes: appointment.notes || '',
     });
   };
 
@@ -115,30 +91,36 @@ const AppointmentEditDialog = ({ appointment, onUpdate }: AppointmentEditDialogP
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="doctor">Doctor</Label>
+              <Label htmlFor="date">Date</Label>
               <Input
-                id="doctor"
-                name="doctor"
-                value={formData.doctor}
+                id="date"
+                name="date"
+                type="date"
+                value={formData.date}
                 onChange={handleChange}
+                required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="specialty">Specialty</Label>
+              <Label htmlFor="time">Time</Label>
               <Input
-                id="specialty"
-                name="specialty"
-                value={formData.specialty}
+                id="time"
+                name="time"
+                type="time"
+                value={formData.time}
                 onChange={handleChange}
+                required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="reason">Reason</Label>
               <Input
-                id="location"
-                name="location"
-                value={formData.location}
+                id="reason"
+                name="reason"
+                value={formData.reason}
                 onChange={handleChange}
+                placeholder="Reason for appointment"
+                required
               />
             </div>
             <div className="space-y-2">
@@ -152,30 +134,20 @@ const AppointmentEditDialog = ({ appointment, onUpdate }: AppointmentEditDialogP
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="upcoming">Upcoming</SelectItem>
+                  <SelectItem value="scheduled">Scheduled</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="date">Date</Label>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="notes">Notes</Label>
               <Input
-                id="date"
-                name="date"
-                type="date"
-                value={formData.date}
+                id="notes"
+                name="notes"
+                value={formData.notes}
                 onChange={handleChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="time">Time</Label>
-              <Input
-                id="time"
-                name="time"
-                type="time"
-                value={formData.time}
-                onChange={handleChange}
+                placeholder="Additional notes (optional)"
               />
             </div>
           </div>
